@@ -46,8 +46,8 @@ public class Window {
             handleInput(key, length);
         }
         terminal.disableRawMode();
-        System.out.print("\033[2J");
-        System.out.print("\033[H");
+        System.out.print(Keys.ESC + "2J");
+        System.out.print(Keys.ESC + "H");
     }
 
     private void scroll() {
@@ -62,6 +62,8 @@ public class Window {
         if (length == 1) {
             if (key[0] == 'q') {
                 running = false;
+            } else if (key[0] == Keys.BACKSPACE) {
+                removeChar();
             } else {
                 System.out.print((char) key[0]);
             }
@@ -70,16 +72,25 @@ public class Window {
         }
     }
 
+    private void removeChar() {
+        if (cursor.getX() == 0) {
+            return;
+        }
+        String str = content.remove(cursor.getY());
+        content.add(cursor.getY(), str.substring(0, cursor.getX() - 1) + str.substring(cursor.getX()));
+        cursor.moveLeft();
+    }
+
     private void handleArrowKeys(byte[] code) {
         switch (code[2]) {
             // move cursor left
-            case 68 -> {
+            case Keys.ARROW_LEFT -> {
                 if (cursor.getX() > 0) {
                     cursor.moveLeft();
                 }
             }
             // move cursor right
-            case 67 -> {
+            case Keys.ARROW_RIGHT -> {
                 if (content.isEmpty()) {
                     return;
                 }
@@ -89,20 +100,20 @@ public class Window {
                 }
             }
             // move cursor down
-            case 66 -> {
+            case Keys.ARROW_DOWN -> {
                 if (cursor.getY() < content.size() - 1) {
                     cursor.moveDown();
                 }
             }
             // move cursor up
-            case 65 -> {
+            case Keys.ARROW_UP -> {
                 if (cursor.getY() > 0) {
                     cursor.moveUp();
                 }
             }
-            case 70 -> cursor.moveEnd(content.get(cursor.getY())
-                                             .length());
-            case 72 -> cursor.moveHome();
+            case Keys.END -> cursor.moveEnd(content.get(cursor.getY())
+                                                   .length());
+            case Keys.HOME -> cursor.moveHome();
             default -> throw new UnsupportedOperationException();
         }
     }
@@ -119,7 +130,7 @@ public class Window {
     private void refresh() {
         StringBuilder builder = new StringBuilder();
 
-        builder.append("\033[H");
+        builder.append(Keys.ESC + "H");
         drawLines(builder);
         drawStatusBar(builder);
         moveCursor(builder);
@@ -129,18 +140,18 @@ public class Window {
 
     private void moveCursor(StringBuilder builder) {
         // moves cursor to line #, column #
-        String location = String.format("\033[%d;%dH", cursor.getY() - offsetY + 1, cursor.getX() + 1);
+        String location = String.format(Keys.ESC + "%d;%dH", cursor.getY() - offsetY + 1, cursor.getX() + 1);
         builder.append(location);
     }
 
     private void drawStatusBar(StringBuilder builder) {
         String statusMsg = "MyTextEditor";
         String cursorPosition = String.format("Offset: %d Rows:%d Cols:%d x:%d y:%d", offsetY, rows, cols, cursor.getX() + 1, cursor.getY() + 1);
-        builder.append("\033[7m")
+        builder.append(Keys.ESC + "7m")
                .append(statusMsg)
                .append(" ".repeat(Math.max(0, cols - statusMsg.length() - cursorPosition.length())))
                .append(cursorPosition)
-               .append("\033[0m");
+               .append(Keys.ESC + "0m");
     }
 
     private void drawLines(StringBuilder builder) {
@@ -151,7 +162,7 @@ public class Window {
             } else {
                 builder.append("~");
             }
-            builder.append("\033[K\r\n");
+            builder.append(Keys.ESC + "K\r\n");
         }
     }
 
