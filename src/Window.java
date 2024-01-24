@@ -3,21 +3,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Window {
     private final UnixTerminal terminal;
-    private final List<String> content = new ArrayList<>();
+    private final List<String> content;
     private final Cursor cursor;
     int rows;
     int cols;
     boolean running;
     int offsetY;
+    private Mode currentMode;
 
     public Window() {
-        terminal = new UnixTerminal();
+        this.terminal = new UnixTerminal();
+        this.content = new ArrayList<>();
         this.running = true;
         this.cursor = new Cursor();
         this.offsetY = 0;
+        this.currentMode = Mode.NORMAL;
     }
 
     public Window(String path) {
@@ -27,6 +31,12 @@ public class Window {
         } catch (IOException e) {
             exit(e.getMessage());
         }
+    }
+
+    private static void reset() {
+        System.out.print(EscapeCode.CLEAR_SCREEN);
+        System.out.print(EscapeCode.MOVE_CURSOR_TOP_LEFT);
+        System.out.print(EscapeCode.BLOCK_CURSOR);
     }
 
     private void exit(String msg) {
@@ -46,8 +56,7 @@ public class Window {
             handleInput(key, length);
         }
         terminal.disableRawMode();
-        System.out.print(Keys.ESC + "2J");
-        System.out.print(Keys.ESC + "H");
+        reset();
     }
 
     private void scroll() {
@@ -59,11 +68,24 @@ public class Window {
     }
 
     private void handleInput(byte[] key, int length) {
+        if (key[0] == ctrl('q')) {
+            running = false;
+            return;
+        }
+        if (currentMode == Mode.NORMAL) {
+            handleInputNormalMode(key);
+        } else {
+            handleInputInsertMode(key, length);
+        }
+    }
+
+    private void handleInputInsertMode(byte[] key, int length) {
         if (length == 1) {
-            if (key[0] == 'q') {
-                running = false;
-            } else if (key[0] == Keys.BACKSPACE) {
-                removeChar();
+            if (key[0] == Keys.BACKSPACE) {
+                deleteChar();
+            } else if (key[0] == Keys.ESCAPE) {
+                currentMode = Mode.NORMAL;
+                System.out.print(EscapeCode.BLOCK_CURSOR);
             } else {
                 System.out.print((char) key[0]);
             }
@@ -72,7 +94,56 @@ public class Window {
         }
     }
 
-    private void removeChar() {
+    private int ctrl(char c) {
+        return c & 0x1f;
+    }
+
+    private void handleInputNormalMode(byte[] key) {
+        if (!Set.of('h', 'j', 'k', 'l', 'i', Keys.END, Keys.HOME, 'I')
+                .contains((char) key[0])) {
+            return;
+        }
+        switch (key[0]) {
+            case 'h' -> {
+                key[2] = Keys.ARROW_LEFT;
+                handleArrowKeys(key);
+            }
+            case 'j' -> {
+                key[2] = Keys.ARROW_DOWN;
+                handleArrowKeys(key);
+            }
+            case 'k' -> {
+                key[2] = Keys.ARROW_UP;
+                handleArrowKeys(key);
+            }
+            case 'l' -> {
+                key[2] = Keys.ARROW_RIGHT;
+                handleArrowKeys(key);
+            }
+            case Keys.END -> {
+                key[2] = Keys.END;
+                handleArrowKeys(key);
+            }
+            case Keys.HOME -> {
+                key[2] = Keys.HOME;
+                handleArrowKeys(key);
+            }
+            case 'i' -> {
+                currentMode = Mode.INSERT;
+                System.out.print(EscapeCode.BEAM_CURSOR);
+            }
+            case 'I' -> {
+                currentMode = Mode.INSERT;
+                System.out.print(EscapeCode.BEAM_CURSOR);
+                key[2] = Keys.HOME;
+                handleArrowKeys(key);
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void deleteChar() {
         if (cursor.getX() == 0) {
             return;
         }
@@ -130,7 +201,7 @@ public class Window {
     private void refresh() {
         StringBuilder builder = new StringBuilder();
 
-        builder.append(Keys.ESC + "H");
+        builder.append(EscapeCode.MOVE_CURSOR_TOP_LEFT);
         drawLines(builder);
         drawStatusBar(builder);
         moveCursor(builder);
@@ -173,5 +244,10 @@ public class Window {
         WindowSize size = terminal.getWindowSize();
         this.rows = size.rows() - 1;
         this.cols = size.columns();
+    }
+
+    enum Mode {
+        NORMAL,
+        INSERT
     }
 }

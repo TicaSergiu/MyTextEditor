@@ -1,4 +1,6 @@
 public class Keys {
+    static final int ENTER = 10;
+    static final int ESCAPE = 27;
     static final int ARROW_UP = 65;
     static final int ARROW_DOWN = 66;
     static final int ARROW_RIGHT = 67;
