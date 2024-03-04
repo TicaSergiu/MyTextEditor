@@ -99,8 +99,8 @@ public class Window {
     }
 
     private void handleInputNormalMode(byte[] key) {
-        if (!Set.of('h', 'j', 'k', 'l', 'i', Keys.END, Keys.HOME, 'I')
-                .contains((char) key[0])) {
+        var navigation = Set.of('h', 'j', 'k', 'l', 'i', Keys.END, Keys.HOME, 'I');
+        if (!navigation.contains((char) key[0]) && !navigation.contains((int) key[2])) {
             return;
         }
         switch (key[0]) {
@@ -120,14 +120,6 @@ public class Window {
                 key[2] = Keys.ARROW_RIGHT;
                 handleArrowKeys(key);
             }
-            case Keys.END -> {
-                key[2] = Keys.END;
-                handleArrowKeys(key);
-            }
-            case Keys.HOME -> {
-                key[2] = Keys.HOME;
-                handleArrowKeys(key);
-            }
             case 'i' -> {
                 currentMode = Mode.INSERT;
                 System.out.print(EscapeCode.BEAM_CURSOR);
@@ -138,8 +130,8 @@ public class Window {
                 key[2] = Keys.HOME;
                 handleArrowKeys(key);
             }
-            default -> {
-            }
+            default -> handleArrowKeys(key);
+
         }
     }
 
@@ -152,8 +144,8 @@ public class Window {
         cursor.moveLeft();
     }
 
-    private void handleArrowKeys(byte[] code) {
-        switch (code[2]) {
+    private void handleArrowKeys(byte[] key) {
+        switch (key[2]) {
             // move cursor left
             case Keys.ARROW_LEFT -> {
                 if (cursor.getX() > 0) {
@@ -173,13 +165,15 @@ public class Window {
             // move cursor down
             case Keys.ARROW_DOWN -> {
                 if (cursor.getY() < content.size() - 1) {
-                    cursor.moveDown();
+                    cursor.moveDown(content.get(cursor.getY() + 1)
+                                           .length());
                 }
             }
             // move cursor up
             case Keys.ARROW_UP -> {
                 if (cursor.getY() > 0) {
-                    cursor.moveUp();
+                    cursor.moveUp(content.get(cursor.getY() - 1)
+                                         .length());
                 }
             }
             case Keys.END -> cursor.moveEnd(content.get(cursor.getY())
@@ -217,7 +211,8 @@ public class Window {
 
     private void drawStatusBar(StringBuilder builder) {
         String statusMsg = "MyTextEditor";
-        String cursorPosition = String.format("Offset: %d Rows:%d Cols:%d x:%d y:%d", offsetY, rows, cols, cursor.getX() + 1, cursor.getY() + 1);
+        String cursorPosition = String.format("Offset: %d Rows:%d Cols:%d x:%d y:%d", offsetY, rows, cols,
+                cursor.getX() + 1, cursor.getY() + 1);
         builder.append(Keys.ESC + "7m")
                .append(statusMsg)
                .append(" ".repeat(Math.max(0, cols - statusMsg.length() - cursorPosition.length())))

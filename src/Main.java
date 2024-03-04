@@ -4,7 +4,7 @@ public class Main {
         if (args.length == 1) {
             window = new Window(args[0]);
         } else {
-            window = new Window("examples/py.txt");
+            window = new Window("examples/rec.txt");
         }
         window.start();
     }
